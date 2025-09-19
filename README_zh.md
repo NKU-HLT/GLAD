@@ -33,7 +33,7 @@
 
 步骤2：准备好数据，运行[`run.sh`](./espnet/egs2/librispeech/asr1/run.sh)。请先运行run.sh脚本的数据处理阶段的stage，之后再运行stage10~stage13。
 
-步骤3：利用[`run_pi_scoring.sh](./espnet/egs2/librispeech/asr1/run_pi_scoring.sh)进行模型评估。评估代码参考自[Speaker-Aware-CTC](https://github.com/kjw11/Speaker-Aware-CTC)，感谢其开源支持。
+步骤3：利用[`run_pi_scoring.sh`](./espnet/egs2/librispeech/asr1/run_pi_scoring.sh)进行模型评估。评估代码参考自[Speaker-Aware-CTC](https://github.com/kjw11/Speaker-Aware-CTC)，感谢其开源支持。
 
 ## 联系我们
 如有问题或合作意向，欢迎通过邮箱与我们联系：
