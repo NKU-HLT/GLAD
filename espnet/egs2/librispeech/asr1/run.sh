@@ -23,7 +23,7 @@ lm_tag=subA
 asr_config=configs/glad_exp/glad.yaml
 train_set=train_960_sub_1mix2mix
 valid_set="dev_clean_2mix"
-test_sets="test_clean_1mix test_clean_2mix test_clean_2mix"
+test_sets="test_clean_1mix test_clean_2mix test_clean_3mix"
 inference_config=configs/decode/decode_asr_aed_only.yaml
 inference_asr_model=valid.acc.ave_10best.pth
 
