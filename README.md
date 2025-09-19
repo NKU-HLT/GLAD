@@ -28,7 +28,7 @@ For each sample, the transcript is represented as "text1" (single-talker) or "te
 
 ## Using GLAD
 
-This project is developed based on the [ESPnet](https://github.com/espnet/espnet)framework. 
+This project is developed based on the [ESPnet](https://github.com/espnet/espnet) framework. 
 
 GLAD-specific configuration files can be found [here](./espnet/egs2/librispeech/asr1/configs).
 
