@@ -1,0 +1,13 @@
+espnet/.devcontainer
+espnet/.gemini
+espnet/.github
+espnet/ci
+espnet/doc
+espnet/docker
+espnet/egs
+espnet/espnetez
+espnet/test
+espnet/test_utils
+espnet/tools
+espnet/utils
+**/__pycache__/
