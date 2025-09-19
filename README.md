@@ -40,12 +40,12 @@ Then, update the configuration files (e.g., data paths) according to your setup.
 
 **Step 2**:
 
-Prepare the data and run [run.sh](./espnet/egs2/librispeech/asr1/run.sh). 
+Prepare the data and run [`run.sh`](./espnet/egs2/librispeech/asr1/run.sh). 
 
 First, execute the initial stages for data preparation, and then run stages 10 through 13 for training.
 
 **Step 3**:
-Use [run_pi_scoring.sh](./espnet/egs2/librispeech/asr1/run_pi_scoring.sh) to evaluate the model.
+Use [`run_pi_scoring.sh`](./espnet/egs2/librispeech/asr1/run_pi_scoring.sh) to evaluate the model.
 
 The evaluation code is adapted from [Speaker-Aware-CTC](https://github.com/kjw11/Speaker-Aware-CTC), and we appreciate their open-source contributions.
 
