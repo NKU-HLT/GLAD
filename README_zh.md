@@ -1,4 +1,4 @@
-([简体中文](./README_zh.md)|English)
+(简体中文|[English](./README.md))
 
 # GLAD: Global-Local Aware Dynamic Mixture-of-Experts for Multi-Talker ASR
 
