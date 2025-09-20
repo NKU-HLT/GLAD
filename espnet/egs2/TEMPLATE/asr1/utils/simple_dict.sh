@@ -1,1 +1,0 @@
-../../../../utils/simple_dict.sh

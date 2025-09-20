@@ -1,1 +1,0 @@
-../../../../utils/free-gpu.sh
