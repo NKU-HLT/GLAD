@@ -5,6 +5,26 @@
 [Arxiv](https://arxiv.org/abs/2509.13093) | 
 [Paper HTML](https://arxiv.org/html/2509.13093v2)
 
+## 方法框架
+
+GLAD（Global-Local Aware Dynamic Mixture-of-Experts）是一个解决多说话人语音识别（Multi-talker ASR， MTASR）的方法框架。我们的动机是：
+
+- MoE的思想非常契合MTASR，可以用来解决不同数量的说话人和不同难度的重叠语音。
+- 说话人的信息对MTASR非常重要，能够帮助模型知道“谁在说话”，进而知道“说了什么”。
+
+因此，我们提出了下图所示的方法框架：
+
+<p align="center">
+  <img src="assets/glad.png" width="600"/>
+</p>
+<p align="center"><em>Figure: GLAD-SOT的整体框架，GLAD-SOT是将GLAD应用到SOT中。 (a) GLAD-SOT 使用最原始的语音生成全局专家权重，并广播给encoder中的每个线形层。 (b) 每个MolE将全局权重和局部权重进行融合生成专家最后的权重，去知道对应的LoRA专家。 (c) 全局-局部动态感知模块自适应地融合全局和局部地权重来指导专家们协助工作。</em></p>
+
+我们的贡献是：
+
+- 据我们所知，这是首次将 MoE 架构应用于 MTASR 中，并取得了性能的提升。
+- 我们提出了GLAD方法，该方法动态融合了说话人感知的全局上下文信息与细粒度的局部声学特征，使专家模块能够在多说话人场景中聚焦于目标说话人，同时捕捉精细的语音模式。
+- 我们通过消融实验深入分析了全局声学特征的作用，以及其在 MTASR 中对说话人感知专家路由的支持。详见我们的[论文](https://arxiv.org/abs/2509.13093)
+
 ## 训练数据
 
 步骤1：进入`traindata`目录，运行`run.sh`解压数据。解压后将生成`generate`和`traindata`两个目录。

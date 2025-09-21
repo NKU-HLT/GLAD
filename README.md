@@ -5,6 +5,28 @@
 [Arxiv](https://arxiv.org/abs/2509.13093) | 
 [Paper HTML](https://arxiv.org/html/2509.13093v2)
 
+## Method Overview
+
+GLAD (Global-Local Aware Dynamic Mixture-of-Experts) is a framework designed to address the challenges of multi-talker automatic speech recognition (MTASR). The motivation behind our design is as follows:
+
+- The Mixture-of-Experts (MoE) paradigm is well-suited for MTASR, as it can naturally handle varying numbers of speakers and different levels of speech overlap.
+- Speaker information is critical for MTASR, as it enables the model to understand who is speaking, which in turn helps determine what is being said.
+
+Based on these insights, we propose the following framework illustrated below:
+
+<p align="center">
+  <img src="assets/glad.png" width="600"/>
+</p>
+<p align="center"><em>Figure: Overview of the GLAD-SOT architecture, which applies the proposed GLAD to SOT. (a) GLAD-SOT leverages original speech
+ features to generate global expert weights for encoder layers. (b) Each MoLE layer combines global and local weights to coordinate LoRA
+ experts. (c) The global-local aware dynamic fusion module adaptively fuses global and local weights to guide expert collaboration.</em></p>
+
+Our main contributions are as follows:
+
+-  To our best knowledge, we are the first to apply MoE architectures to end-to-end MTASR, showing significant improvements over conventional methods.
+- We introduce GLAD, which dynamically combines speaker-aware global context with fine-grained local acoustic features. This enables experts to focus on target speakers while capturing fine-grained speech patterns in multi-talker scenarios.
+- Our ablation studies investigate the role of global acoustic features and their support for speaker-aware expert routing in MTASR. For more details, please refer to our [paper](https://arxiv.org/abs/2509.13093)
+
 ## Training Data
 
 **Step 1**: Navigate to the `traindata` directory and run `run.sh` to extract the data. This will generate two folders: `generate` and `traindata`.
