@@ -151,8 +151,6 @@ class MOE_EncoderLayer(nn.Module):
             residual = residual[:, -1:, :]
             mask = None if mask is None else mask[:, -1:, :]
         
-        # with open("/mnt/nvme0n1/guoyujie_space/work/espnet/test_moe/log.txt", "a") as f:
-        #     f.write("attention\n")
         
         if pos_emb is not None:
             if self.use_att_moe:
@@ -184,8 +182,6 @@ class MOE_EncoderLayer(nn.Module):
             if not self.normalize_before:
                 x = self.norm_conv(x)
         
-        # with open("/mnt/nvme0n1/guoyujie_space/work/espnet/test_moe/log.txt", "a") as f:
-        #     f.write("feed forward\n")
         
         # feed forward module
         residual = x
