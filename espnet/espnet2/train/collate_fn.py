@@ -406,6 +406,9 @@ def common_collate_fn(
         else:
             pad_value = float_pad_value
 
+        if key == "audiomask":
+            pad_value = 0
+        
         array_list = [d[key] for d in data]
 
         # Assume the first axis is length:

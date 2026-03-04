@@ -1,11 +1,5 @@
  #!/usr/bin/env python
 
-"""
-Author: Jiawen Kang (jwkang at se.cuhk.edu.hk)
-
-This script is used to subset the ref and hyp trn files by the ovlp rate.
-It requires a utt2rate file to specify the ovlp rate of each utt.
-"""
 
 import os
 import click

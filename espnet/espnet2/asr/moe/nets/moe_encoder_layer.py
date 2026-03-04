@@ -101,6 +101,9 @@ class MOE_EncoderLayer(nn.Module):
         else:
             x, pos_emb = x_input, None
 
+        global_router = [mask, global_router]
+        balance_loss = 0.0
+        
         skip_layer = False
         # with stochastic depth, residual connection `x + f(x)` becomes
         # `x <- x + 1 / (1 - p) * f(x)` at training time.
@@ -122,8 +125,11 @@ class MOE_EncoderLayer(nn.Module):
             if self.normalize_before:
                 x = self.norm_ff_macaron(x)
             if self.use_linear_moe:
+                x1 = self.feed_forward_macaron(x, global_router)
+                balance_loss += x1[1]
+                x1 = x1[0]
                 x = residual + stoch_layer_coeff * self.ff_scale * self.dropout(
-                    self.feed_forward_macaron(x, global_router)
+                    x1
                 )
             else:
                 x = residual + stoch_layer_coeff * self.ff_scale * self.dropout(
@@ -150,12 +156,14 @@ class MOE_EncoderLayer(nn.Module):
         
         if pos_emb is not None:
             if self.use_att_moe:
-                x_att = self.self_attn(x_q, x, x, pos_emb, mask, global_router=global_router)
+                x_att, balance_loss1 = self.self_attn(x_q, x, x, pos_emb, mask, global_router=global_router)
+                balance_loss += balance_loss1
             else:
                 x_att = self.self_attn(x_q, x, x, pos_emb, mask)
         else:
             if self.use_att_moe:
-                x_att = self.self_attn(x_q, x, x, mask, global_router=global_router)
+                x_att, balance_loss1 = self.self_attn(x_q, x, x, mask, global_router=global_router)
+                balance_loss += balance_loss1
             else:
                 x_att = self.self_attn(x_q, x, x, mask)
 
@@ -184,8 +192,11 @@ class MOE_EncoderLayer(nn.Module):
         if self.normalize_before:
             x = self.norm_ff(x)
         if self.use_linear_moe:
+            x1 = self.feed_forward_macaron(x, global_router)
+            balance_loss += x1[1]
+            x1 = x1[0]
             x = residual + stoch_layer_coeff * self.ff_scale * self.dropout(
-                self.feed_forward(x, global_router)
+                x1
             )
         else:
             x = residual + stoch_layer_coeff * self.ff_scale * self.dropout(
@@ -201,6 +212,6 @@ class MOE_EncoderLayer(nn.Module):
             x = torch.cat([cache, x], dim=1)
 
         if pos_emb is not None:
-            return (x, pos_emb), mask
+            return (x, pos_emb), mask, balance_loss
 
-        return x, mask
+        return x, mask, balance_loss

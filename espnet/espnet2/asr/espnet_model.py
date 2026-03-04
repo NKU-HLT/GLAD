@@ -48,7 +48,8 @@ class ESPnetASRModel(AbsESPnetModel):
         encoder: AbsEncoder,
         postencoder: Optional[AbsPostEncoder],
         decoder: AbsDecoder,
-        ctc: Union[CTC],
+        # ctc: Union[CTC],
+        ctc,
         joint_network: Optional[torch.nn.Module],
         ctc_weight: float = 0.5,
         interctc_weight: float = 0.0,
@@ -200,7 +201,8 @@ class ESPnetASRModel(AbsESPnetModel):
         text = text[:, : text_lengths.max()]
 
         # 1. Encoder
-        encoder_out, encoder_out_lens = self.encode(speech, speech_lengths)
+        encoder_out, encoder_out_lens, balance_loss = self.encode(speech, speech_lengths)
+        
         intermediate_outs = None
         if isinstance(encoder_out, tuple):
             intermediate_outs = encoder_out[1]
@@ -283,6 +285,10 @@ class ESPnetASRModel(AbsESPnetModel):
                 loss = loss_ctc
             else:
                 loss = self.ctc_weight * loss_ctc + (1 - self.ctc_weight) * loss_att
+            
+            if balance_loss is not None:
+                loss = loss + balance_loss
+                stats["loss_balance"] = balance_loss.detach()
 
             # Collect Attn branch stats
             stats["loss_att"] = loss_att.detach() if loss_att is not None else None
@@ -326,6 +332,7 @@ class ESPnetASRModel(AbsESPnetModel):
             speech: (Batch, Length, ...)
             speech_lengths: (Batch, )
         """
+        balance_loss = None
         with autocast(False):
             # 1. Extract feats
             feats, feats_lengths = self._extract_feats(speech, speech_lengths)
@@ -346,11 +353,16 @@ class ESPnetASRModel(AbsESPnetModel):
         # feats: (Batch, Length, Dim)
         # -> encoder_out: (Batch, Length2, Dim2)
         if self.encoder.interctc_use_conditioning:
-            encoder_out, encoder_out_lens, _ = self.encoder(
+            encoder_out, encoder_out_lens, balance_loss1 = self.encoder(
                 feats, feats_lengths, ctc=self.ctc
             )
+            if balance_loss1 is not None:
+                balance_loss = balance_loss1
         else:
-            encoder_out, encoder_out_lens, _ = self.encoder(feats, feats_lengths)
+            encoder_out, encoder_out_lens, balance_loss1 = self.encoder(feats, feats_lengths)
+            if balance_loss1 is not None:
+                balance_loss = balance_loss1
+        
         intermediate_outs = None
         if isinstance(encoder_out, tuple):
             intermediate_outs = encoder_out[1]
@@ -374,7 +386,7 @@ class ESPnetASRModel(AbsESPnetModel):
         if intermediate_outs is not None:
             return (encoder_out, intermediate_outs), encoder_out_lens
 
-        return encoder_out, encoder_out_lens
+        return encoder_out, encoder_out_lens, balance_loss
 
     def _extract_feats(
         self, speech: torch.Tensor, speech_lengths: torch.Tensor

@@ -48,7 +48,8 @@ class MOE_MultiHeadedAttention(nn.Module):
         cross_attn=False,
         use_sdpa=False,
         num_experts=3, lora_rank=8, lora_alpha=1.0, lora_dropout=0.0,
-        router_dropout=0.0, global_router=True, use_dynamic_router=True
+        router_dropout=0.0, global_router=True, use_dynamic_router=True,
+        topk=1, aux_loss_coef=0.01, d_global=256,
     ):
         """Construct an MultiHeadedAttention object."""
         super(MOE_MultiHeadedAttention, self).__init__()
@@ -59,16 +60,20 @@ class MOE_MultiHeadedAttention(nn.Module):
         self.h = n_head
         self.linear_q = MoLE(num_experts, n_feat, n_feat, 
                         lora_rank, lora_alpha, lora_dropout,
-                        router_dropout, global_router, use_dynamic_router)
+                        router_dropout, global_router, use_dynamic_router,
+                        topk, aux_loss_coef, d_global)
         self.linear_k = MoLE(num_experts, n_feat, n_feat, 
                         lora_rank, lora_alpha, lora_dropout,
-                        router_dropout, global_router, use_dynamic_router)
+                        router_dropout, global_router, use_dynamic_router,
+                        topk, aux_loss_coef, d_global)
         self.linear_v = MoLE(num_experts, n_feat, n_feat, 
                         lora_rank, lora_alpha, lora_dropout,
-                        router_dropout, global_router, use_dynamic_router)
+                        router_dropout, global_router, use_dynamic_router,
+                        topk, aux_loss_coef, d_global)
         self.linear_out = MoLE(num_experts, n_feat, n_feat, 
                         lora_rank, lora_alpha, lora_dropout,
-                        router_dropout, global_router, use_dynamic_router)
+                        router_dropout, global_router, use_dynamic_router,
+                        topk, aux_loss_coef, d_global)
         self.attn = None
         self.dropout = (
             nn.Dropout(p=dropout_rate) if not use_flash_attn else nn.Identity()
@@ -100,13 +105,16 @@ class MOE_MultiHeadedAttention(nn.Module):
             torch.Tensor: Transformed value tensor (#batch, n_head, time2, d_k).
 
         """
+        balance_loss = 0.0
         n_batch = query.size(0)
         q, q_weights = self.linear_q(query, global_router)
+        balance_loss += q_weights[1]
         q = q.view(n_batch, -1, self.h, self.d_k)
 
         if expand_kv:
             k_shape = key.shape
             k1, k_weights = self.linear_k(key[:1, :, :], global_router)
+            balance_loss += k_weights[1]
             k = (
                 k1
                 .expand(n_batch, k_shape[1], k_shape[2])
@@ -114,6 +122,7 @@ class MOE_MultiHeadedAttention(nn.Module):
             )
             v_shape = value.shape
             v1, v_weights = self.linear_v(value[:1, :, :], global_router)
+            balance_loss += v_weights[1]
             v = (
                 v1
                 .expand(n_batch, v_shape[1], v_shape[2])
@@ -121,8 +130,10 @@ class MOE_MultiHeadedAttention(nn.Module):
             )
         else:
             k, k_weights = self.linear_k(key, global_router)
+            balance_loss += k_weights[1]
             k = k.view(n_batch, -1, self.h, self.d_k)
             v, v_weights = self.linear_v(value, global_router)
+            balance_loss += v_weights[1]
             v = v.view(n_batch, -1, self.h, self.d_k)
 
         q = q.transpose(1, 2)  # (batch, head, time1, d_k)
@@ -132,7 +143,7 @@ class MOE_MultiHeadedAttention(nn.Module):
         q = self.q_norm(q)
         k = self.k_norm(k)
 
-        return q, k, v
+        return q, k, v, balance_loss
 
     def forward_attention(self, value, scores, mask, global_router=None):
         """Compute attention context vector.
@@ -147,6 +158,7 @@ class MOE_MultiHeadedAttention(nn.Module):
                 weighted by the attention score (#batch, time1, time2).
 
         """
+        balance_loss = 0.0
         n_batch = value.size(0)
         if mask is not None:
             mask = mask.unsqueeze(1).eq(0)  # (batch, 1, *, time2)
@@ -165,7 +177,8 @@ class MOE_MultiHeadedAttention(nn.Module):
         )  # (batch, time1, d_model)
 
         res, res_states = self.linear_out(x, global_router)
-        return  res # (batch, time1, d_model)
+        balance_loss += res_states[1]
+        return  res, balance_loss # (batch, time1, d_model)
 
     def forward(self, query, key, value, mask, expand_kv=False, global_router=None):
         """Compute scaled dot product attention.
@@ -187,9 +200,11 @@ class MOE_MultiHeadedAttention(nn.Module):
             torch.Tensor: Output tensor (#batch, time1, d_model).
         """
         # Use PyTorch's Scaled Dot Product Attention implementation
+        balance_loss = 0.0
+        
         if getattr(self, "use_sdpa", False):
-            q, k, v = self.forward_qkv(query, key, value, expand_kv, global_router)
-
+            q, k, v, balance_loss1 = self.forward_qkv(query, key, value, expand_kv, global_router)
+            balance_loss += balance_loss1
             # The shape of mask must be broadcastable to the shape of attention weights
             out = torch.nn.functional.scaled_dot_product_attention(
                 q,
@@ -228,10 +243,13 @@ class MOE_MultiHeadedAttention(nn.Module):
                     v, _, _, _ = unpad_input(value, key_nonpad_mask)[:4]
                     
                     q, q_weights = self.linear_q(q, global_router)
+                    balance_loss += q_weights[1]
                     q = q.reshape(-1, self.h, self.d_k)
                     k, k_weights = self.linear_k(k, global_router)
+                    balance_loss += k_weights[1]
                     k = k.reshape(-1, self.h, self.d_k)
                     v, v_weights = self.linear_v(v, global_router)
+                    balance_loss += v_weights[1]
                     v = v.reshape(-1, self.h, self.d_k)
 
                     q = self.q_norm(q)
@@ -251,7 +269,7 @@ class MOE_MultiHeadedAttention(nn.Module):
 
                     out = out.reshape(out.shape[0], -1)
                     out,out_weights = self.linear_out(out, global_router)
-
+                    balance_loss += out_weights[1]
                     out = pad_input(out, indices_q, query.shape[0], query.shape[1])
                     return out
 
@@ -259,8 +277,9 @@ class MOE_MultiHeadedAttention(nn.Module):
                     # Use fixed length implementation if not padded,
                     # which is faster than the variable length implementation
                     del key_nonpad_mask
-                    q, k, v = self.forward_qkv(query, key, value, False, global_router)
-
+                    q, k, v, balance_loss1 = self.forward_qkv(query, key, value, False, global_router)
+                    balance_loss += balance_loss1
+                    
                     out = flash_attn_func(
                         q.transpose(1, 2),
                         k.transpose(1, 2),
@@ -272,6 +291,7 @@ class MOE_MultiHeadedAttention(nn.Module):
 
                     out = out.reshape(out.shape[0], out.shape[1], -1)
                     out, out_weights = self.linear_out(out, global_router)
+                    balance_loss += out_weights[1]
                     return out
 
             except Exception as e:
@@ -281,9 +301,12 @@ class MOE_MultiHeadedAttention(nn.Module):
                 self.use_flash_attn = False
 
         # Fall back to the default implementation
-        q, k, v = self.forward_qkv(query, key, value, expand_kv, global_router)
+        q, k, v, balance_loss1 = self.forward_qkv(query, key, value, expand_kv, global_router)
+        balance_loss += balance_loss1
         scores = torch.matmul(q, k.transpose(-2, -1)) / math.sqrt(self.d_k)
-        return self.forward_attention(v, scores, mask, global_router=global_router)
+        res, balance_loss2 = self.forward_attention(v, scores, mask, global_router=global_router)
+        balance_loss += balance_loss2
+        return res, balance_loss
 
 
 class MOE_LegacyRelPositionMultiHeadedAttention(MOE_MultiHeadedAttention):
@@ -303,12 +326,14 @@ class MOE_LegacyRelPositionMultiHeadedAttention(MOE_MultiHeadedAttention):
 
     def __init__(self, n_head, n_feat, dropout_rate, zero_triu=False,
                  num_experts=3, lora_rank=8, lora_alpha=1.0, lora_dropout=0.0,
-                 router_dropout=0.0, global_router=True, use_dynamic_router=True):
+                 router_dropout=0.0, global_router=True, use_dynamic_router=True,
+                 topk=1, aux_loss_coef=0.01, d_global=256,):
         """Construct an RelPositionMultiHeadedAttention object."""
         super().__init__(n_head, n_feat, dropout_rate, 
                          False, False, False, False, False,
                          num_experts, lora_rank, lora_alpha, lora_dropout,
-                         router_dropout, global_router, use_dynamic_router)
+                         router_dropout, global_router, use_dynamic_router,
+                         topk, aux_loss_coef, d_global)
         self.zero_triu = zero_triu
         # linear transformation for positional encoding
         self.linear_pos = nn.Linear(n_feat, n_feat, bias=False)
@@ -356,7 +381,9 @@ class MOE_LegacyRelPositionMultiHeadedAttention(MOE_MultiHeadedAttention):
             torch.Tensor: Output tensor (#batch, time1, d_model).
 
         """
-        q, k, v = self.forward_qkv(query, key, value, False, global_router)
+        balance_loss = 0.0
+        q, k, v, balance_loss1 = self.forward_qkv(query, key, value, False, global_router)
+        balance_loss += balance_loss1
         q = q.transpose(1, 2)  # (batch, time1, head, d_k)
 
         n_batch_pos = pos_emb.size(0)
@@ -383,7 +410,8 @@ class MOE_LegacyRelPositionMultiHeadedAttention(MOE_MultiHeadedAttention):
             self.d_k
         )  # (batch, head, time1, time2)
 
-        return self.forward_attention(v, scores, mask, global_router=global_router)
+        res, balance_loss2 = self.forward_attention(v, scores, mask, global_router=global_router)
+        return res, balance_loss+ balance_loss2
 
 
 class MOE_RelPositionMultiHeadedAttention(MOE_MultiHeadedAttention):
@@ -403,12 +431,14 @@ class MOE_RelPositionMultiHeadedAttention(MOE_MultiHeadedAttention):
 
     def __init__(self, n_head, n_feat, dropout_rate, zero_triu=False,
                  num_experts=3, lora_rank=8, lora_alpha=1.0, lora_dropout=0.0,
-                 router_dropout=0.0, global_router=True, use_dynamic_router=True):
+                 router_dropout=0.0, global_router=True, use_dynamic_router=True,
+                 topk=1, aux_loss_coef=0.01, d_global=256,):
         """Construct an RelPositionMultiHeadedAttention object."""
         super().__init__(n_head, n_feat, dropout_rate, 
                          False, False, False, False,False,
                          num_experts, lora_rank, lora_alpha, lora_dropout,
-                         router_dropout, global_router, use_dynamic_router)
+                         router_dropout, global_router, use_dynamic_router,
+                         topk, aux_loss_coef, d_global)
         self.zero_triu = zero_triu
         # linear transformation for positional encoding
         self.linear_pos = nn.Linear(n_feat, n_feat, bias=False)
@@ -460,7 +490,9 @@ class MOE_RelPositionMultiHeadedAttention(MOE_MultiHeadedAttention):
             torch.Tensor: Output tensor (#batch, time1, d_model).
 
         """
-        q, k, v = self.forward_qkv(query, key, value, False, global_router)
+        balance_loss = 0.0
+        q, k, v, balance_loss1 = self.forward_qkv(query, key, value, False, global_router)
+        balance_loss += balance_loss1
         q = q.transpose(1, 2)  # (batch, time1, head, d_k)
 
         n_batch_pos = pos_emb.size(0)
@@ -487,4 +519,5 @@ class MOE_RelPositionMultiHeadedAttention(MOE_MultiHeadedAttention):
             self.d_k
         )  # (batch, head, time1, time2)
 
-        return self.forward_attention(v, scores, mask, global_router=global_router)
+        res, balance_loss2 = self.forward_attention(v, scores, mask, global_router=global_router)
+        return res, balance_loss+ balance_loss2

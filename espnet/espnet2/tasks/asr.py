@@ -7,6 +7,7 @@ import torch
 from typeguard import check_argument_types, check_return_type
 
 from espnet2.asr.ctc import CTC
+from espnet2.asr.sactc import BPECTC, SpeakerAwareCTC
 from espnet2.asr.decoder.abs_decoder import AbsDecoder
 from espnet2.asr.decoder.mlm_decoder import MLMDecoder
 from espnet2.asr.decoder.rnn_decoder import RNNDecoder
@@ -68,6 +69,7 @@ from espnet2.utils.get_default_kwargs import get_default_kwargs
 from espnet2.utils.nested_dict_action import NestedDictAction
 from espnet2.utils.types import float_or_none, int_or_none, str2bool, str_or_none
 from espnet2.asr.moe.encoder.moe_conformer_encoder import MOE_ConformerEncoder
+from espnet2.asr.csenet.csenet import CSENet_ConformerEncoder
 
 frontend_choices = ClassChoices(
     name="frontend",
@@ -133,6 +135,7 @@ encoder_choices = ClassChoices(
         hubert_pretrain=FairseqHubertPretrainEncoder,
         longformer=LongformerEncoder,
         branchformer=BranchformerEncoder,
+        csenetconformer=CSENet_ConformerEncoder,
     ),
     type_check=AbsEncoder,
     default="rnn",
@@ -432,7 +435,7 @@ class ASRTask(AbsTask):
             args.frontend_conf = {}
             frontend = None
             input_size = args.input_size
-
+            
         # 2. Data augmentation for spectrogram
         if args.specaug is not None:
             specaug_class = specaug_choices.get_class(args.specaug)
@@ -498,11 +501,18 @@ class ASRTask(AbsTask):
             joint_network = None
 
         # 6. CTC
-        ctc = CTC(
-            odim=vocab_size,
-            encoder_output_size=encoder_output_size,
-            **args.ctc_conf,
-        )
+        ctc_name = args.ctc_name
+        ctc = None
+        if ctc_name == "base":
+            ctc = CTC(
+                odim=vocab_size,
+                encoder_output_size=encoder_output_size,
+                **args.ctc_conf,
+            )
+        else:
+            ctc = SpeakerAwareCTC(
+                odim=vocab_size, eprojs=encoder_output_size, **args.ctc_conf
+            )
 
         # 7. Build model
         try:

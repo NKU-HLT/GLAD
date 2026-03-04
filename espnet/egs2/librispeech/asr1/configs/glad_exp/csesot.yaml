@@ -1,10 +1,10 @@
-# bigger batch size
-encoder: moe_conformer
+# only ctc
+# conformer7 -> onlyctc
+encoder: csenetconformer
 encoder_conf:
     output_size: 256
     attention_heads: 4
     linear_units: 1024
-    num_blocks: 12
     dropout_rate: 0.1
     positional_dropout_rate: 0.1
     attention_dropout_rate: 0.1
@@ -17,17 +17,11 @@ encoder_conf:
     activation_type: swish
     use_cnn_module: true
     cnn_module_kernel: 15
-    use_moe: true
-    global_router: false
-    use_dynamic_router: false
-    use_linear_moe: true
-    use_att_moe: true
-    num_experts: 3
-    lora_rank: 8
-    lora_alpha: 8
-    lora_dropout: 0.1
-    router_dropout: 0.1
 
+    num_sd_blocks: 4
+    num_joint_blocks: 2
+    num_rec_blocks: 2
+    
 # decoder related
 decoder: transformer
 decoder_conf:
@@ -40,13 +34,21 @@ decoder_conf:
     src_attention_dropout_rate: 0.1
 
 model_conf:
-    ctc_weight: 0
+    ctc_weight: 0.3
     lsm_weight: 0.1
     length_normalized_loss: false
 
+ctc_conf:
+    ignore_nan_grad: true
+
+unused_parameters: false
+
+ddp_comm_hook: bf16_compress_hook
+use_amp: true
+
 num_workers: 4
 batch_type: numel
-batch_bins: 50000000
+batch_bins: 60000000
 accum_grad: 4
 grad_clip: 5
 max_epoch: 50
@@ -81,4 +83,3 @@ specaug_conf:
     - 0
     - 40
     num_time_mask: 2
-

@@ -45,7 +45,7 @@ from espnet2.fileio.rttm import RttmReader
 from espnet2.fileio.score_scp import SingingScoreReader
 from espnet2.fileio.sound_scp import SoundScpReader
 from espnet2.utils.sized_dict import SizedDict
-
+from espnet2.mtasr.audiomasker import AudioMaskReader
 
 class AdapterForSoundScpReader(collections.abc.Mapping):
     def __init__(
@@ -418,6 +418,14 @@ DATA_TYPES = {
         "    END     file1 <NA> 4023 <NA> <NA> <NA> <NA>"
         "   ...",
     ),
+    "audiomask":dict(
+        func=AudioMaskReader,
+        kwargs=[],
+        help="This refers to the Loss Function for training the Global Router in MTASR\n服务于MTASR里面Global router的loss"
+        "\n\n"
+        "   utterance_id_a size rate <numberofspeakers> start_1 duration_1 ... start_n duration_n \n"
+        "   ...",
+    ),
 }
 
 
@@ -460,11 +468,12 @@ class ESPnetDataset(AbsDataset):
         allow_multi_rates: bool = False,
         keys_to_load: Optional[Set[Union[str, int]]] = None,
     ):
+        
         if len(path_name_type_list) == 0:
             raise ValueError(
                 '1 or more elements are required for "path_name_type_list"'
             )
-
+        
         path_name_type_list = copy.deepcopy(path_name_type_list)
         self.preprocess = preprocess
 

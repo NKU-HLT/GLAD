@@ -12,7 +12,6 @@ export QT_XCB_GL_INTEGRATION=${QT_XCB_GL_INTEGRATION:-software}
 
 stage=11
 stop_stage=13
-
 # Settings
 tag=$(echo $(basename $0) | cut -d "_" -f 2 | cut -d "." -f 1)  # read file name
 
@@ -20,11 +19,11 @@ asr_train_tag=$tag
 asr_stats_tag=subA
 lm_tag=subA
 
-asr_config=configs/glad.yaml
+asr_config=configs/glad_exp/glad.yaml
 train_set=train_960_sub_1mix2mix
 valid_set="dev_clean_2mix"
 test_sets="test_clean_1mix test_clean_2mix test_clean_3mix"
-inference_config=configs/decode/decode_asr_aed_only.yaml
+inference_config=configs/decode/decode_asr_aed.yaml
 inference_asr_model=valid.acc.ave_10best.pth
 
 use_lm=false

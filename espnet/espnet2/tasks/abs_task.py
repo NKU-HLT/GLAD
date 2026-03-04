@@ -440,7 +440,7 @@ class AbsTask(ABC):
         group.add_argument(
             "--unused_parameters",
             type=str2bool,
-            default=False,
+            default=False, # 开启find_unused_parameters
             help="Whether to use the find_unused_parameters in "
             "torch.nn.parallel.DistributedDataParallel ",
         )
@@ -470,7 +470,7 @@ class AbsTask(ABC):
         )
         group.add_argument(
             "--ddp_comm_hook",
-            default=None,
+            default="none", # 混合精度， None
             type=str_or_none,
             choices=["none", "fp16_compress_hook", "bf16_compress_hook"],
             help="DDP communication hook from "
@@ -618,13 +618,13 @@ class AbsTask(ABC):
         group.add_argument(
             "--train_dtype",
             default="float32",
-            choices=["float16", "float32", "float64"],
+            choices=["float16", "float32", "float64", "bfloat16"],
             help="Data type for training.",
         )
         group.add_argument(
             "--use_amp",
             type=str2bool,
-            default=False,
+            default=True, # 开启混合精度训练
             help="Enable Automatic Mixed Precision. This feature requires pytorch>=1.6",
         )
         group.add_argument(
@@ -1726,7 +1726,7 @@ class AbsTask(ABC):
             iterator_type = args.valid_iterator_type
         else:
             iterator_type = args.iterator_type
-
+        
         if iterator_type == "sequence":
             return cls.build_sequence_iter_factory(
                 args=args,

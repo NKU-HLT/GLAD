@@ -137,6 +137,10 @@ class MOE_ConformerEncoder(AbsEncoder):
         lora_alpha: int = 1,
         lora_dropout: float = 0.0,
         router_dropout: float = 0.0,
+        
+        topk=2,
+        aux_loss_coef=0.01,
+        d_global=256,
     ):
         super().__init__()
         self._output_size = output_size
@@ -245,6 +249,9 @@ class MOE_ConformerEncoder(AbsEncoder):
                     router_dropout,
                     global_router,
                     use_dynamic_router,
+                    topk,
+                    aux_loss_coef,
+                    d_global,
                 )
             else:
                 positionwise_layer = PositionwiseFeedForward            
@@ -304,6 +311,9 @@ class MOE_ConformerEncoder(AbsEncoder):
                     router_dropout,
                     global_router,
                     use_dynamic_router,
+                    topk,
+                    aux_loss_coef,
+                    d_global,
                 )
             else:
                 encoder_selfattn_layer = MultiHeadedAttention
@@ -332,6 +342,9 @@ class MOE_ConformerEncoder(AbsEncoder):
                     router_dropout,
                     global_router,
                     use_dynamic_router,
+                    topk,
+                    aux_loss_coef,
+                    d_global,
                 )
                 logging.warning(
                     "Using legacy_rel_selfattn and it will be deprecated in the future."
@@ -362,6 +375,9 @@ class MOE_ConformerEncoder(AbsEncoder):
                     router_dropout,
                     global_router,
                     use_dynamic_router,
+                    topk,
+                    aux_loss_coef,
+                    d_global,
                 ) 
             else:
                 encoder_selfattn_layer = RelPositionMultiHeadedAttention
@@ -432,7 +448,7 @@ class MOE_ConformerEncoder(AbsEncoder):
 
         self.global_router_fc = None
         if global_router:
-            self.global_router_fc = torch.nn.Linear(self._output_size, num_experts, bias=False)
+            self.global_router_fc = torch.nn.Linear(self._output_size, self._output_size, bias=False)
 
     def output_size(self) -> int:
         return self._output_size
@@ -486,6 +502,8 @@ class MOE_ConformerEncoder(AbsEncoder):
             xs_pad = self.embed(xs_pad)
 
         intermediate_outs = []
+        balance_loss = 0.0
+        
         if self.global_router_fc:
             xs_pad_x = xs_pad[0] if isinstance(xs_pad, tuple) else xs_pad
             global_weights = torch.nn.functional.softmax(self.global_router_fc(xs_pad_x), dim=-1)
@@ -493,9 +511,11 @@ class MOE_ConformerEncoder(AbsEncoder):
         if len(self.interctc_layer_idx) == 0:
             for layer_idx, encoder_layer in enumerate(self.encoders):
                 if self.global_router_fc:
-                    xs_pad, masks = encoder_layer(xs_pad, masks, global_router=global_weights)
+                    xs_pad, masks, balance_loss1 = encoder_layer(xs_pad, masks, global_router=global_weights)
+                    balance_loss += balance_loss1
                 else:
-                    xs_pad, masks = encoder_layer(xs_pad, masks)
+                    xs_pad, masks, balance_loss1 = encoder_layer(xs_pad, masks)
+                    balance_loss += balance_loss1
                 if return_all_hs:
                     if isinstance(xs_pad, tuple):
                         intermediate_outs.append(xs_pad[0])
@@ -504,9 +524,11 @@ class MOE_ConformerEncoder(AbsEncoder):
         else:
             for layer_idx, encoder_layer in enumerate(self.encoders):
                 if self.global_router_fc:
-                    xs_pad, masks = encoder_layer(xs_pad, masks, global_router=global_weights)
+                    xs_pad, masks, balance_loss1 = encoder_layer(xs_pad, masks, global_router=global_weights)
+                    balance_loss += balance_loss1
                 else:
-                    xs_pad, masks = encoder_layer(xs_pad, masks)
+                    xs_pad, masks, balance_loss1 = encoder_layer(xs_pad, masks)
+                    balance_loss += balance_loss1
                 if layer_idx + 1 in self.interctc_layer_idx:
                     encoder_out = xs_pad
                     if isinstance(encoder_out, tuple):
@@ -548,4 +570,4 @@ class MOE_ConformerEncoder(AbsEncoder):
         olens = masks.squeeze(1).sum(1)
         if len(intermediate_outs) > 0:
             return (xs_pad, intermediate_outs), olens, None
-        return xs_pad, olens, None
+        return xs_pad, olens, balance_loss
