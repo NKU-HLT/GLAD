@@ -7,25 +7,23 @@
 
 ## Method Overview
 
-GLAD (Global-Local Aware Dynamic Mixture-of-Experts) is a framework designed to address the challenges of multi-talker automatic speech recognition (MTASR). The motivation behind our design is as follows:
+GLAD (Global-Local Aware Dynamic Mixture-of-Experts) is an innovative architecture designed to tackle the challenge of transcribing overlapping speech in Multi-Talker Automatic Speech Recognition (MTASR). The motivation behind our design is as follows:
 
-- The Mixture-of-Experts (MoE) paradigm is well-suited for MTASR, as it can naturally handle varying numbers of speakers and different levels of speech overlap.
-- Speaker information is critical for MTASR, as it enables the model to understand who is speaking, which in turn helps determine what is being said.
+- The Mixture-of-Experts (MoE) paradigm handles input variability via conditional computation. It enables the dynamic allocation of specialized experts to process varying numbers of speakers and different degrees of speech overlap, making it highly suitable for MTASR tasks.
+- Speaker characteristics have been proven crucial for MTASR by recent works. However, in deep network layers, the critical speaker-specific acoustic features needed to distinguish speaker identities are often diluted. This dilution makes it difficult for traditional local routers to properly assign experts based on the speaker.
 
 Based on these insights, we propose the following framework illustrated below:
 
 <p align="center">
   <img src="assets/glad.png" width="600"/>
 </p>
-<p align="center"><em>Figure: Overview of the GLAD-SOT architecture, which applies the proposed GLAD to SOT. (a) GLAD-SOT leverages original speech
- features to generate global expert weights for encoder layers. (b) Each MoLE layer combines global and local weights to coordinate LoRA
- experts. (c) The global-local aware dynamic fusion module adaptively fuses global and local weights to guide expert collaboration.</em></p>
+<p align="center"><em>Figure: Overview of the proposed GLAD-SOT architecture. (a) A global linear encoder transforms features from the convolution frontend into a shared global representation, which is broadcast to each MoLE layer. (b) Each MoLE layer derives global weights from the shared global representation and integrates them with local signals to coordinate low-rank experts. (c) The global-local aware dynamic fusion module adaptively fuses weights to guide expert selection.</em></p>
 
 Our main contributions are as follows:
 
--  To our best knowledge, we are the first to apply MoE architectures to end-to-end MTASR, showing significant improvements over conventional methods.
-- We introduce GLAD, which dynamically combines speaker-aware global context with fine-grained local acoustic features. This enables experts to focus on target speakers while capturing fine-grained speech patterns in multi-talker scenarios.
-- Our ablation studies investigate the role of global acoustic features and their support for speaker-aware expert routing in MTASR. For more details, please refer to our [paper](https://arxiv.org/abs/2509.13093)
+-  To the best of our knowledge, this work represents the first application of MoE architectures in MTASR. Extensive experiments on LibriSpeechMix and CH109 demonstrate that our method outperforms strong SOT-based baselines, especially in challenging MTASR scenarios.
+- We propose GLAD, a novel mechanism that dynamically fuses speaker-aware global context from shallow acoustic features with fine-grained local features. This dual-path routing strategy guides experts to disentangle overlapping speech by leveraging both speaker identity cues and phonetic details.
+- We provide comprehensive ablation studies to validate the efficacy of our design. Our analysis reveals that incorporating global acoustic features is critical for speaker-aware expert routing, particularly in high-overlap scenarios where distinguishing speaker identity is most challenging. For more details, please refer to our [paper](https://arxiv.org/abs/2509.13093)
 
 ## Training Data
 
@@ -51,8 +49,6 @@ For each sample, the transcript is represented as "text1" (single-talker) or "te
 ## Using GLAD
 
 This project is developed based on the [ESPnet](https://github.com/espnet/espnet) framework. 
-
-GLAD-specific configuration files can be found [here](./espnet/egs2/librispeech/asr1/configs).
 
 **Step 1**:
 

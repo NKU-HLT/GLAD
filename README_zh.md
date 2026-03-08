@@ -7,23 +7,23 @@
 
 ## 方法框架
 
-GLAD（Global-Local Aware Dynamic Mixture-of-Experts）是一个解决多说话人语音识别（Multi-talker ASR， MTASR）的方法框架。我们的动机是：
+GLAD（Global-Local Aware Dynamic Mixture-of-Experts）是一个旨在解决多说话人自动语音识别（Multi-Talker Speech Recognition, MTASR）重叠语音转录挑战的创新架构 。
 
-- MoE的思想非常契合MTASR，可以用来解决不同数量的说话人和不同难度的重叠语音。
-- 说话人的信息对MTASR非常重要，能够帮助模型知道“谁在说话”，进而知道“说了什么”。
+- 混合专家（MoE）范式通过条件计算处理输入的多样性，能够动态分配专门的专家来处理不同数量的说话人和不同程度的语音重叠，非常适合 MTASR 任务 。
+- 当前的一些工作证明，说话人的特征对于MTASR非常重要，然而在深层网络中，用于区分说话人身份的关键特定声学特征往往会被稀释，这导致传统的局部路由器难以根据说话人进行合理的专家分配。
 
 因此，我们提出了下图所示的方法框架：
 
 <p align="center">
   <img src="assets/glad.png" width="600"/>
 </p>
-<p align="center"><em>Figure: GLAD-SOT的整体框架，GLAD-SOT是将GLAD应用到SOT中。 (a) GLAD-SOT 使用最原始的语音生成全局专家权重，并广播给encoder中的每个线形层。 (b) 每个MolE将全局权重和局部权重进行融合生成专家最后的权重，去知道对应的LoRA专家。 (c) 全局-局部动态感知模块自适应地融合全局和局部地权重来指导专家们协助工作。</em></p>
+<p align="center"><em>Figure: 提出的 GLAD-SOT 架构概览。(a) 全局线性编码器将来自卷积前端的特征转换为共享的全局表示，并将其广播到每个 MoLE 层。(b) 每个 MoLE 层从共享的全局表示中提取全局权重，并将其与局部信号结合，以协调低秩专家。(c) 全局-局部感知动态融合模块自适应地融合这些权重，以指导专家的选择。</em></p>
 
 我们的贡献是：
 
-- 据我们所知，这是首次将 MoE 架构应用于 MTASR 中，并取得了性能的提升。
-- 我们提出了GLAD方法，该方法动态融合了说话人感知的全局上下文信息与细粒度的局部声学特征，使专家模块能够在多说话人场景中聚焦于目标说话人，同时捕捉精细的语音模式。
-- 我们通过消融实验深入分析了全局声学特征的作用，以及其在 MTASR 中对说话人感知专家路由的支持。详见我们的[论文](https://arxiv.org/abs/2509.13093)
+- 据我们所知，这项工作代表了混合专家 (MoE) 架构在多说话人语音识别 (MTASR) 中的首次应用 。在 LibriSpeechMix 和 CH109 数据集上的广泛实验表明，我们的方法优于强大的基于 SOT 的基线模型，特别是在极具挑战性的 MTASR 场景中。
+- 我们提出了 GLAD，这是一种新颖的机制，它能够动态地将来自浅层声学特征的说话人感知全局上下文与细粒度的局部特征相融合。这种双路径路由策略同时利用说话人身份线索和语音细节，从而指导专家解开重叠的语音。
+- 我们提供了全面的消融实验来验证我们设计的有效性 。我们的分析表明，引入全局声学特征对于说话人感知的专家路由至关重要，特别是在区分说话人身份最为困难的高重叠场景中。详见我们的[论文](https://arxiv.org/abs/2509.13093)。
 
 ## 训练数据
 
@@ -46,7 +46,7 @@ GLAD（Global-Local Aware Dynamic Mixture-of-Experts）是一个解决多说话�
 
 ## 使用GLAD
 
-本项目基于[ESPnet](https://github.com/espnet/espnet)框架进行开发。GLAD详细的配置文件在[这里](./espnet/egs2/librispeech/asr1/configs)。
+本项目基于[ESPnet](https://github.com/espnet/espnet)框架进行开发。
 
 步骤1：将本仓库中espnet目录下的`egs2`，`espnet`，`espnet2`目录替换至官方[ESPnet](https://github.com/espnet/espnet)仓库对应目录中，并根据实际情况修改配置（如数据路径等）。
 
