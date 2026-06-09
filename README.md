@@ -96,3 +96,4 @@ We would like to thank the following open-source projects, which inspired and su
 
 - [LibrispeechMix](https://github.com/NaoyukiKanda/LibriSpeechMix)
 - [Speaker-Aware-CTC](https://github.com/kjw11/Speaker-Aware-CTC)
+- [CSEnet](https://github.com/kjw11/CSEnet-ASR)
