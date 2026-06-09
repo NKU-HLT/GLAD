@@ -83,3 +83,4 @@ guoyujie02@mail.nankai.edu.cn
 
 - [LibrispeechMix](https://github.com/NaoyukiKanda/LibriSpeechMix)
 - [Speaker-Aware-CTC](https://github.com/kjw11/Speaker-Aware-CTC)
+- [CSEnet](https://github.com/kjw11/CSEnet-ASR)
