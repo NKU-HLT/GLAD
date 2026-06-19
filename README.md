@@ -9,8 +9,9 @@
 
 GLAD (Global-Local Aware Dynamic Mixture-of-Experts) is an innovative architecture designed to tackle the challenge of transcribing overlapping speech in Multi-Talker Automatic Speech Recognition (MTASR). The motivation behind our design is as follows:
 
-- The Mixture-of-Experts (MoE) paradigm handles input variability via conditional computation. It enables the dynamic allocation of specialized experts to process varying numbers of speakers and different degrees of speech overlap, making it highly suitable for MTASR tasks.
-- Speaker characteristics have been proven crucial for MTASR by recent works. However, in deep network layers, the critical speaker-specific acoustic features needed to distinguish speaker identities are often diluted. This dilution makes it difficult for traditional local routers to properly assign experts based on the speaker.
+- Recent studies have demonstrated that speaker characteristics play a crucial role in MTASR. Injecting speaker-related information into the encoder can provide stronger guidance for disentangling overlapping speech representations and improving recognition performance.
+- The Mixture-of-Experts (MoE) paradigm handles input variability through conditional computation. By dynamically allocating specialized experts to different speaker combinations and overlap conditions, MoE naturally fits the requirements of MTASR tasks.
+- However, in deep network layers, speaker-discriminative acoustic cues tend to become progressively diluted, making it difficult for conventional local routing mechanisms to assign experts according to speaker characteristics. To address this issue, we introduce global information to complement local routing decisions and enhance expert selection.
 
 Based on these insights, we propose the following framework illustrated below:
 
@@ -24,6 +25,11 @@ Our main contributions are as follows:
 -  To the best of our knowledge, this work represents the first application of MoE architectures in MTASR. Extensive experiments on LibriSpeechMix and CH109 demonstrate that our method outperforms strong SOT-based baselines, especially in challenging MTASR scenarios.
 - We propose GLAD, a novel mechanism that dynamically fuses speaker-aware global context from shallow acoustic features with fine-grained local features. This dual-path routing strategy guides experts to disentangle overlapping speech by leveraging both speaker identity cues and phonetic details.
 - We provide comprehensive ablation studies to validate the efficacy of our design. Our analysis reveals that incorporating global acoustic features is critical for speaker-aware expert routing, particularly in high-overlap scenarios where distinguishing speaker identity is most challenging. For more details, please refer to our [paper](https://arxiv.org/abs/2509.13093)
+
+**Number of activated experts**: We further conducted experiments by varying the routing top-k from 1 to 3 under a three-expert setting.
+- We found that selecting all three experts (top-k = 3) achieved the best performance.We attribute this phenomenon to the inherent complexity of multi-talker speech, where overlapping speakers produce highly entangled acoustic patterns. Under a small top-k setting, and with the presence of load-balancing constraints, the learning signal is forced to be distributed across a limited subset of experts, which may lead to insufficient specialization of individual experts. As a result, each expert receives only partially informative and fragmented representations, limiting their ability to model complex overlapping conditions.
+- In contrast, a larger top-k (i.e., dense expert activation) allows multiple experts to participate in processing the same input, enabling richer expert interaction and more comprehensive representation modeling. This facilitates better utilization of complementary global and local acoustic cues, leading to improved robustness in challenging overlapping speech scenarios.
+
 
 ## Training Data
 
